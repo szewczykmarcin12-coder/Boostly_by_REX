@@ -7,6 +7,8 @@ export default function Header({
   searchQuery, 
   onSearch, 
   onOpenSettings, 
+  onOpenNotifications,
+  unreadNotificationsCount,
   showBack, 
   onBack 
 }) {
@@ -48,11 +50,16 @@ export default function Header({
 
         <div className="flex items-center gap-2">
           {/* Notifications */}
-          <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
+          <button 
+            onClick={onOpenNotifications}
+            className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
             <Bell className="w-6 h-6 text-gray-600" />
-            <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              1
-            </span>
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+              </span>
+            )}
           </button>
 
           {/* Menu */}

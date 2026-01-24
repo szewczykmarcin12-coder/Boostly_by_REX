@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, Folder, Clock, Heart, LayoutGrid } from 'lucide-react';
+import { Home, Folder, Clock, Heart } from 'lucide-react';
 
 export default function BottomNav({ activeTab, onTabChange }) {
   const tabs = [
@@ -8,7 +8,6 @@ export default function BottomNav({ activeTab, onTabChange }) {
     { id: 'categories', icon: Folder, label: 'Katalogi' },
     { id: 'recent', icon: Clock, label: 'Ostatnie' },
     { id: 'favorites', icon: Heart, label: 'Ulubione' },
-    { id: 'more', icon: LayoutGrid, label: 'Więcej' },
   ];
 
   return (
@@ -22,7 +21,7 @@ export default function BottomNav({ activeTab, onTabChange }) {
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center py-2 px-4 rounded-2xl transition-all duration-200 ${
+              className={`flex flex-col items-center justify-center py-2 px-6 rounded-2xl transition-all duration-200 ${
                 isActive 
                   ? 'bg-gray-100' 
                   : 'hover:bg-gray-50'

@@ -11,25 +11,23 @@ export default function HomeScreen({
 }) {
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* Banner/Carousel placeholder */}
+      {/* Banner with Popeyes logo */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 h-48">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white">
-            <h2 className="text-3xl font-bold mb-2">POPEYES</h2>
-            <p className="text-lg opacity-90">Louisiana Kitchen</p>
-            <p className="text-sm opacity-75 mt-2">Standardy pracy</p>
-          </div>
+        <div className="absolute inset-0 flex items-center justify-center p-6">
+          <img 
+            src="/popeyes-logo.png" 
+            alt="Popeyes Louisiana Kitchen" 
+            className="max-h-28 w-auto object-contain"
+          />
         </div>
         {/* Decorative elements */}
         <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-orange-400/30 rounded-full"></div>
         <div className="absolute -left-5 -top-5 w-24 h-24 bg-orange-400/20 rounded-full"></div>
       </div>
 
-      {/* Carousel dots */}
-      <div className="flex justify-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-        <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-        <div className="w-2 h-2 rounded-full bg-gray-800"></div>
+      {/* Standardy pracy text */}
+      <div className="text-center">
+        <h2 className="text-lg font-semibold text-gray-700">Standardy pracy</h2>
       </div>
 
       {/* Recently added section */}
@@ -62,10 +60,7 @@ export default function HomeScreen({
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Heart className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-semibold">
-            <span className="text-primary">my</span>
-            <span className="text-gray-800">Favourites</span>
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-800">Ulubione</h2>
         </div>
         
         {favorites.length > 0 ? (

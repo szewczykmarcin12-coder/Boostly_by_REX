@@ -12,10 +12,7 @@ export default function FavoritesScreen({
     <div className="animate-fadeIn">
       <div className="flex items-center gap-2 mb-4">
         <Heart className="w-5 h-5 text-gray-600" />
-        <h2 className="text-lg font-semibold">
-          <span className="text-primary">my</span>
-          <span className="text-gray-800">Favourites</span>
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-800">Ulubione</h2>
       </div>
       
       {favorites.length > 0 ? (

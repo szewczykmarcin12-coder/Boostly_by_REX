@@ -8,13 +8,52 @@ import CategoriesScreen from '@/components/CategoriesScreen';
 import RecentScreen from '@/components/RecentScreen';
 import FavoritesScreen from '@/components/FavoritesScreen';
 import SettingsModal from '@/components/SettingsModal';
+import NotificationsModal from '@/components/NotificationsModal';
 import CategoryView from '@/components/CategoryView';
 import DocumentView from '@/components/DocumentView';
 import SearchResults from '@/components/SearchResults';
 
+// Initial notifications about new documents
+const initialNotifications = [
+  {
+    id: 'notif-1',
+    type: 'new_document',
+    title: 'Nowy dokument dodany',
+    message: 'Dodano nowy dokument "Procedury otwarcia restauracji" w kategorii Zarządzanie restauracją',
+    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 min ago
+    read: false,
+  },
+  {
+    id: 'notif-2',
+    type: 'new_document',
+    title: 'Aktualizacja dokumentu',
+    message: 'Zaktualizowano dokument "HACCP" w kategorii Bezpieczeństwo żywności',
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    read: false,
+  },
+  {
+    id: 'notif-3',
+    type: 'new_category',
+    title: 'Nowa kategoria',
+    message: 'Dodano nową kategorię "LTO" z aktualnymi promocjami',
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+    read: true,
+  },
+  {
+    id: 'notif-4',
+    type: 'new_document',
+    title: 'Nowe standardy',
+    message: 'Dodano dokumenty dotyczące produktów smażonych w kategorii Standardy',
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
+    read: true,
+  },
+];
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [currentCategory, setCurrentCategory] = useState(null);
   const [currentDocument, setCurrentDocument] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,16 +62,23 @@ export default function Home() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [navigationStack, setNavigationStack] = useState([]);
 
-  // Load favorites and recent from localStorage
+  // Load data from localStorage
   useEffect(() => {
     const savedFavorites = localStorage.getItem('boostly_favorites');
     const savedRecent = localStorage.getItem('boostly_recent');
+    const savedNotifications = localStorage.getItem('boostly_notifications');
     
     if (savedFavorites) {
       setFavorites(JSON.parse(savedFavorites));
     }
     if (savedRecent) {
       setRecentDocuments(JSON.parse(savedRecent));
+    }
+    if (savedNotifications) {
+      setNotifications(JSON.parse(savedNotifications));
+    } else {
+      // Set initial notifications if none saved
+      setNotifications(initialNotifications);
     }
   }, []);
 
@@ -45,6 +91,28 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem('boostly_recent', JSON.stringify(recentDocuments));
   }, [recentDocuments]);
+
+  // Save notifications to localStorage
+  useEffect(() => {
+    if (notifications.length > 0) {
+      localStorage.setItem('boostly_notifications', JSON.stringify(notifications));
+    }
+  }, [notifications]);
+
+  // Count unread notifications
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  // Mark notification as read
+  const handleMarkNotificationAsRead = (notificationId) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+  };
+
+  // Mark all notifications as read
+  const handleClearAllNotifications = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   const handleNavigateToCategory = (categoryId) => {
     setNavigationStack(prev => [...prev, { type: 'category', id: currentCategory }]);
@@ -187,6 +255,8 @@ export default function Home() {
         searchQuery={searchQuery}
         onSearch={handleSearch}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenNotifications={() => setShowNotifications(true)}
+        unreadNotificationsCount={unreadNotificationsCount}
         showBack={currentCategory !== null || currentDocument !== null}
         onBack={handleBack}
       />
@@ -202,6 +272,15 @@ export default function Home() {
 
       {showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+
+      {showNotifications && (
+        <NotificationsModal 
+          onClose={() => setShowNotifications(false)}
+          notifications={notifications}
+          onMarkAsRead={handleMarkNotificationAsRead}
+          onClearAll={handleClearAllNotifications}
+        />
       )}
     </main>
   );

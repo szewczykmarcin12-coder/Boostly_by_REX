@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, User, Languages, HelpCircle, LogOut } from 'lucide-react';
+import { X, User, Languages } from 'lucide-react';
 
 export default function SettingsModal({ onClose }) {
   const [selectedLanguage, setSelectedLanguage] = useState('Polish');
 
-  const languages = ['Polish', 'English', 'Ukrainian'];
+  const languages = ['Polish'];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-10 animate-fadeIn">
@@ -32,8 +32,13 @@ export default function SettingsModal({ onClose }) {
             <h3 className="text-xl font-semibold text-gray-800">Użytkownik Popeyes</h3>
             
             {/* Popeyes Logo */}
-            <div className="mt-4 bg-orange-500 rounded-lg px-4 py-2">
-              <span className="text-white font-bold text-lg">POPEYES</span>
+            <div className="mt-4">
+              <img 
+                src="/popeyes-logo.png" 
+                alt="Popeyes" 
+                className="h-12 w-auto"
+                style={{ filter: 'brightness(0) saturate(100%) invert(55%) sepia(98%) saturate(1000%) hue-rotate(360deg) brightness(103%) contrast(106%)' }}
+              />
             </div>
           </div>
 
@@ -77,20 +82,10 @@ export default function SettingsModal({ onClose }) {
             </div>
           </div>
 
-          {/* FAQ */}
-          <button className="w-full flex items-center gap-3 py-3 border-t border-gray-100">
-            <HelpCircle className="w-5 h-5 text-gray-600" />
-            <span className="text-gray-700">Najczęściej zadawane pytania (FAQ)</span>
-          </button>
-
-          {/* Logout */}
-          <button className="w-full flex items-center justify-between py-3 border-t border-gray-100">
-            <div className="flex items-center gap-3">
-              <LogOut className="w-5 h-5 text-gray-600" />
-              <span className="text-gray-700">Wyloguj</span>
-            </div>
+          {/* Version info */}
+          <div className="text-center pt-4 border-t border-gray-100">
             <span className="text-gray-400 text-sm">Ver. 1.0.0</span>
-          </button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
 
 // Base URL dla dokumentów na GitHub
 // Zmień na swoje repozytorium po wdrożeniu
-export const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/YOUR_USERNAME/boostly-popeyes/main/documents';
+export const GITHUB_RAW_BASE = 'https://github.com/szewczykmarcin12-coder/Boostly_by_REX/tree/main/documents';
 
 // Definicja dokumentów dla każdej kategorii
 // Format: categoryId -> lista dokumentów

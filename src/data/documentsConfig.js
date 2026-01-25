@@ -2,8 +2,8 @@
 // Edytuj ten plik, aby dodawać/usuwać dokumenty
 
 // Base URL dla dokumentów na GitHub
-// Zmień na swoje repozytorium po wdrożeniu
-export const GITHUB_RAW_BASE = 'https://github.com/szewczykmarcin12-coder/Boostly_by_REX/tree/main/documents';
+// Używamy raw.githubusercontent.com do pobierania surowych plików
+export const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/szewczykmarcin12-coder/Boostly_by_REX/main/documents';
 
 // Definicja dokumentów dla każdej kategorii
 // Format: categoryId -> lista dokumentów

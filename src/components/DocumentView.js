@@ -1,23 +1,47 @@
 'use client';
 
-import { useState } from 'react';
-import { Heart, Download, AlertCircle, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Heart, Download, AlertCircle } from 'lucide-react';
 
 export default function DocumentView({ document, isFavorite, onToggleFavorite }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Google Docs Viewer - działa z publicznymi URL
+  const googleViewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(document.pdfUrl)}&embedded=true`;
+
+  useEffect(() => {
+    // Reset state when document changes
+    setLoading(true);
+    setError(false);
+  }, [document.pdfUrl]);
+
   const handleIframeLoad = () => {
     setLoading(false);
   };
 
-  const handleIframeError = () => {
-    setLoading(false);
-    setError(true);
+  const handleDownload = async (e) => {
+    e.preventDefault();
+    
+    try {
+      // Pobierz plik jako blob
+      const response = await fetch(document.pdfUrl);
+      const blob = await response.blob();
+      
+      // Stwórz link do pobrania
+      const url = window.URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = document.filename || `${document.name}.pdf`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      // Fallback - otwórz w nowej karcie
+      window.open(document.pdfUrl, '_blank');
+    }
   };
-
-  // Mozilla PDF.js viewer - działa z GitHub raw URLs
-  const pdfViewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(document.pdfUrl)}`;
 
   return (
     <div className="animate-fadeIn">
@@ -47,21 +71,20 @@ export default function DocumentView({ document, isFavorite, onToggleFavorite })
               />
             </button>
             
-            <a
-              href={document.pdfUrl}
-              download
+            <button
+              onClick={handleDownload}
               className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
               title="Pobierz"
             >
               <Download className="w-4 h-4" />
               Pobierz
-            </a>
+            </button>
           </div>
         </div>
       </div>
 
       {/* PDF Viewer - domyślny podgląd */}
-      <div className="bg-white rounded-2xl overflow-hidden shadow-sm relative">
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm relative" style={{ minHeight: '75vh' }}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
             <div className="text-center">
@@ -80,21 +103,21 @@ export default function DocumentView({ document, isFavorite, onToggleFavorite })
             <p className="text-gray-500 text-center mb-4">
               Wystąpił problem z wyświetleniem dokumentu.
             </p>
-            <a
-              href={document.pdfUrl}
-              download
+            <button
+              onClick={handleDownload}
               className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl hover:bg-orange-600 transition-colors font-medium"
             >
               <Download className="w-5 h-5" />
               Pobierz dokument
-            </a>
+            </button>
           </div>
         ) : (
           <iframe
-            src={pdfViewerUrl}
-            className="w-full h-[75vh] border-0"
+            src={googleViewerUrl}
+            className="w-full border-0"
+            style={{ height: '75vh' }}
             onLoad={handleIframeLoad}
-            onError={handleIframeError}
+            onError={() => setError(true)}
             title={document.name}
             allowFullScreen
           />

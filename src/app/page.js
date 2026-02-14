@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import HomeScreen from '@/components/HomeScreen';
@@ -15,18 +15,22 @@ import SearchResults from '@/components/SearchResults';
 import PinScreen from '@/components/PinScreen';
 import AdminPanel from '@/components/AdminPanel';
 import {
-  verifyUserPin, verifyAdminPin,
-  isAuthenticated, setAuthenticated,
-  isAdminAuthenticated, setAdminAuthenticated,
-  getNotifications, saveNotifications,
-} from '@/data/store';
+  fetchConfig, fetchNotifications,
+  getReadNotificationIds, markNotificationReadLocal, markAllNotificationsReadLocal,
+} from '@/lib/api';
 
 export default function Home() {
   const [authState, setAuthState] = useState('loading'); // loading, pin, authenticated, admin
+  const [adminPin, setAdminPin] = useState(''); // store admin pin for session
   const [activeTab, setActiveTab] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Global config from server
+  const [config, setConfig] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [readNotifIds, setReadNotifIds] = useState([]);
+
   const [currentCategory, setCurrentCategory] = useState(null);
   const [currentDocument, setCurrentDocument] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,92 +39,99 @@ export default function Home() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [navigationStack, setNavigationStack] = useState([]);
 
+  // Load config from server
+  const loadConfig = useCallback(async () => {
+    try {
+      const data = await fetchConfig();
+      setConfig(data);
+    } catch (e) {
+      console.error('Failed to load config:', e);
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const notifs = await fetchNotifications();
+      setNotifications(notifs);
+    } catch (e) {
+      console.error('Failed to load notifications:', e);
+    }
+  }, []);
+
   // Check auth state on mount
   useEffect(() => {
-    if (isAuthenticated()) {
+    const isAuth = sessionStorage.getItem('boostly_auth') === 'true';
+    if (isAuth) {
       setAuthState('authenticated');
     } else {
       setAuthState('pin');
     }
-    // Load data
-    loadLocalData();
-  }, []);
-
-  const loadLocalData = () => {
-    if (typeof window === 'undefined') return;
+    // Load local data
     const savedFavorites = localStorage.getItem('boostly_favorites');
     const savedRecent = localStorage.getItem('boostly_recent');
     if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
     if (savedRecent) setRecentDocuments(JSON.parse(savedRecent));
-    setNotifications(getNotifications());
-  };
+    setReadNotifIds(getReadNotificationIds());
+  }, []);
 
-  // Save favorites to localStorage
+  // Load server data when authenticated
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('boostly_favorites', JSON.stringify(favorites));
+    if (authState === 'authenticated') {
+      loadConfig();
+      loadNotifications();
     }
+  }, [authState, loadConfig, loadNotifications]);
+
+  // Save favorites/recent to localStorage
+  useEffect(() => {
+    localStorage.setItem('boostly_favorites', JSON.stringify(favorites));
   }, [favorites]);
 
-  // Save recent to localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('boostly_recent', JSON.stringify(recentDocuments));
-    }
+    localStorage.setItem('boostly_recent', JSON.stringify(recentDocuments));
   }, [recentDocuments]);
 
   // ========== PIN Handlers ==========
-  const handlePinSuccess = (pin) => {
-    if (verifyUserPin(pin)) {
-      setAuthenticated(true);
-      setAuthState('authenticated');
-    } else {
-      // Trigger error in PinScreen
-      if (window.__pinScreenTriggerError) {
-        window.__pinScreenTriggerError('Nieprawidłowy PIN');
-      }
-    }
+  const handlePinSuccess = () => {
+    sessionStorage.setItem('boostly_auth', 'true');
+    setAuthState('authenticated');
   };
 
   const handleAdminAccess = (pin) => {
-    if (verifyAdminPin(pin)) {
-      setAdminAuthenticated(true);
-      setAuthState('admin');
-    } else {
-      if (window.__pinScreenTriggerError) {
-        window.__pinScreenTriggerError('Nieprawidłowy PIN administratora');
-      }
-    }
+    setAdminPin(pin);
+    setAuthState('admin');
   };
 
   const handleAdminClose = () => {
-    setAdminAuthenticated(false);
+    setAdminPin('');
     setAuthState('authenticated');
-    // Refresh notifications after admin changes
-    setNotifications(getNotifications());
+    // Refresh config after admin changes
+    loadConfig();
+    loadNotifications();
   };
 
   const handleLogout = () => {
-    setAuthenticated(false);
-    setAdminAuthenticated(false);
+    sessionStorage.removeItem('boostly_auth');
     setAuthState('pin');
+    setAdminPin('');
   };
 
-  // ========== Notification Handlers ==========
-  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+  // ========== Notifications ==========
+  const enrichedNotifications = notifications.map(n => ({
+    ...n,
+    read: readNotifIds.includes(n.id),
+  }));
+  const unreadNotificationsCount = enrichedNotifications.filter(n => !n.read).length;
 
   const handleMarkNotificationAsRead = (notificationId) => {
-    const updated = notifications.map(n =>
-      n.id === notificationId ? { ...n, read: true } : n
-    );
-    setNotifications(updated);
-    saveNotifications(updated);
+    markNotificationReadLocal(notificationId);
+    setReadNotifIds(prev => [...prev, notificationId]);
   };
 
   const handleClearAllNotifications = () => {
-    const updated = notifications.map(n => ({ ...n, read: true }));
-    setNotifications(updated);
-    saveNotifications(updated);
+    const allIds = notifications.map(n => n.id);
+    markAllNotificationsReadLocal(allIds);
+    setReadNotifIds(allIds);
   };
 
   // ========== Navigation ==========
@@ -141,10 +152,7 @@ export default function Home() {
   };
 
   const handleBack = () => {
-    if (currentDocument) {
-      setCurrentDocument(null);
-      return;
-    }
+    if (currentDocument) { setCurrentDocument(null); return; }
     if (navigationStack.length > 0) {
       const lastNav = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
@@ -178,8 +186,6 @@ export default function Home() {
   };
 
   // ========== Render ==========
-
-  // Loading state
   if (authState === 'loading') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -188,27 +194,32 @@ export default function Home() {
     );
   }
 
-  // PIN screen
   if (authState === 'pin') {
+    return <PinScreen onSuccess={handlePinSuccess} onAdminAccess={handleAdminAccess} />;
+  }
+
+  if (authState === 'admin') {
+    return <AdminPanel adminPin={adminPin} onClose={handleAdminClose} />;
+  }
+
+  // Wait for config
+  if (!config) {
     return (
-      <PinScreen
-        onSuccess={handlePinSuccess}
-        onAdminAccess={handleAdminAccess}
-      />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
+          <p className="text-gray-500">Ładowanie...</p>
+        </div>
+      </div>
     );
   }
 
-  // Admin panel
-  if (authState === 'admin') {
-    return <AdminPanel onClose={handleAdminClose} />;
-  }
-
-  // Main app (authenticated)
   const renderContent = () => {
     if (isSearching) {
       return (
         <SearchResults
           query={searchQuery}
+          config={config}
           onSelectCategory={handleNavigateToCategory}
           onSelectDocument={handleNavigateToDocument}
         />
@@ -227,6 +238,7 @@ export default function Home() {
       return (
         <CategoryView
           categoryId={currentCategory}
+          config={config}
           onNavigateToCategory={handleNavigateToCategory}
           onNavigateToDocument={handleNavigateToDocument}
           onBack={handleBack}
@@ -237,46 +249,15 @@ export default function Home() {
     }
     switch (activeTab) {
       case 'home':
-        return (
-          <HomeScreen
-            recentDocuments={recentDocuments}
-            favorites={favorites}
-            onNavigateToDocument={handleNavigateToDocument}
-            onToggleFavorite={toggleFavorite}
-          />
-        );
+        return <HomeScreen recentDocuments={recentDocuments} favorites={favorites} onNavigateToDocument={handleNavigateToDocument} onToggleFavorite={toggleFavorite} />;
       case 'categories':
-        return (
-          <CategoriesScreen
-            onNavigateToCategory={handleNavigateToCategory}
-          />
-        );
+        return <CategoriesScreen config={config} onNavigateToCategory={handleNavigateToCategory} />;
       case 'recent':
-        return (
-          <RecentScreen
-            recentDocuments={recentDocuments}
-            onNavigateToDocument={handleNavigateToDocument}
-            favorites={favorites}
-            onToggleFavorite={toggleFavorite}
-          />
-        );
+        return <RecentScreen recentDocuments={recentDocuments} onNavigateToDocument={handleNavigateToDocument} favorites={favorites} onToggleFavorite={toggleFavorite} />;
       case 'favorites':
-        return (
-          <FavoritesScreen
-            favorites={favorites}
-            onNavigateToDocument={handleNavigateToDocument}
-            onToggleFavorite={toggleFavorite}
-          />
-        );
+        return <FavoritesScreen favorites={favorites} onNavigateToDocument={handleNavigateToDocument} onToggleFavorite={toggleFavorite} />;
       default:
-        return (
-          <HomeScreen
-            recentDocuments={recentDocuments}
-            favorites={favorites}
-            onNavigateToDocument={handleNavigateToDocument}
-            onToggleFavorite={toggleFavorite}
-          />
-        );
+        return <HomeScreen recentDocuments={recentDocuments} favorites={favorites} onNavigateToDocument={handleNavigateToDocument} onToggleFavorite={toggleFavorite} />;
     }
   };
 
@@ -291,27 +272,13 @@ export default function Home() {
         showBack={currentCategory !== null || currentDocument !== null}
         onBack={handleBack}
       />
-
-      <div className="pt-4 px-4">
-        {renderContent()}
-      </div>
-
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-      />
-
-      {showSettings && (
-        <SettingsModal
-          onClose={() => setShowSettings(false)}
-          onLogout={handleLogout}
-        />
-      )}
-
+      <div className="pt-4 px-4">{renderContent()}</div>
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onLogout={handleLogout} />}
       {showNotifications && (
         <NotificationsModal
           onClose={() => setShowNotifications(false)}
-          notifications={notifications}
+          notifications={enrichedNotifications}
           onMarkAsRead={handleMarkNotificationAsRead}
           onClearAll={handleClearAllNotifications}
         />

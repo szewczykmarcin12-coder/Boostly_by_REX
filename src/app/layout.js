@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Boostly by Rex Concepts - Popeyes Standards',
+  title: 'Boostly by M. Szewczyk - Popeyes Standards',
   description: 'Aplikacja zawierająca standardy pracy w sieci restauracji Popeyes',
 }
 

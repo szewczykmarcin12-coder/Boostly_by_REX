@@ -97,15 +97,10 @@ export default function PinScreen({ onSuccess, onAdminAccess }) {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 flex flex-col items-center justify-center p-6">
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center mb-4">
-          <svg width="52" height="52" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 4C20 4 12 12 12 20C12 24.4 14.4 28 18 30V36H22V30C25.6 28 28 24.4 28 20C28 12 20 4 20 4Z" fill="#F57C00"/>
-            <path d="M16 18C16 18 14 22 16 26C18 30 20 30 20 30C20 30 18 26 18 22C18 18 20 14 20 14C20 14 16 14 16 18Z" fill="#FFB74D"/>
-            <path d="M24 18C24 18 26 22 24 26C22 30 20 30 20 30C20 30 22 26 22 22C22 18 20 14 20 14C20 14 24 14 24 18Z" fill="#E65100"/>
-            <circle cx="20" cy="18" r="3" fill="#FFF3E0"/>
-          </svg>
+          <img src="/boostly-logo.png" alt="Boostly" className="w-14 h-14 object-contain" />
         </div>
         <h1 className="text-2xl font-bold text-gray-800"><span className="text-primary">Boostly</span></h1>
-        <p className="text-xs text-gray-500 mt-0.5">by Rex Concepts</p>
+        <p className="text-xs text-gray-500 mt-0.5">by M. Szewczyk</p>
       </div>
 
       <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${mode === 'admin' ? 'bg-red-100' : 'bg-orange-100'}`}>

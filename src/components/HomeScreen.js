@@ -34,7 +34,7 @@ export default function HomeScreen({
       <section>
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-800">Ostatnio dodane</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Ostatnio przeglądane</h2>
         </div>
         
         {recentDocuments.length > 0 ? (

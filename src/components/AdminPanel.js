@@ -235,7 +235,7 @@ export default function AdminPanel({ adminPin, onClose }) {
         {!config.kvConfigured && (
           <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-xs">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Vercel KV nie jest skonfigurowany. Zmiany nie będą zapisywane. <a href="https://vercel.com/docs/storage/vercel-kv" target="_blank" rel="noopener" className="underline font-semibold">Instrukcja →</a></span>
+            <span>Upstash Redis nie jest skonfigurowany. Zmiany nie będą zapisywane. <a href="https://vercel.com/marketplace/upstash-redis" target="_blank" rel="noopener" className="underline font-semibold">Dodaj z Marketplace →</a></span>
           </div>
         )}
       </div>

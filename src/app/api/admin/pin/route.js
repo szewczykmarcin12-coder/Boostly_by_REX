@@ -5,7 +5,7 @@ export async function POST(request) {
   try {
     if (!isKvConfigured()) {
       return NextResponse.json(
-        { error: 'Baza danych nie jest skonfigurowana. Skonfiguruj Vercel KV.' },
+        { error: 'Baza danych nie jest skonfigurowana. Skonfiguruj Upstash Redis.' },
         { status: 503 }
       );
     }

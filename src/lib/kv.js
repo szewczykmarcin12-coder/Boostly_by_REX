@@ -1,20 +1,22 @@
-// Vercel KV helper with graceful fallback
-// When KV is not configured, returns defaults from static config
-import { createClient } from '@vercel/kv';
+// Upstash Redis helper (replaces deprecated Vercel KV)
+// Upstash Redis integration from Vercel Marketplace sets:
+//   UPSTASH_REDIS_REST_URL  and  UPSTASH_REDIS_REST_TOKEN
 
-// Lazy singleton – only created when actually needed
-let kvClient = null;
+import { Redis } from '@upstash/redis';
 
-function getKv() {
-  if (kvClient) return kvClient;
+// Lazy singleton
+let redisClient = null;
 
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
+function getRedis() {
+  if (redisClient) return redisClient;
+
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
   if (!url || !token) return null;
 
-  kvClient = createClient({ url, token });
-  return kvClient;
+  redisClient = new Redis({ url, token });
+  return redisClient;
 }
 
 export const KV_KEYS = {
@@ -26,7 +28,7 @@ export const KV_KEYS = {
   NOTIFICATIONS: 'boostly:notifications',
 };
 
-// Default values imported from static config
+// Default values from static config
 import { menuStructure as defaultMenuStructure } from '@/data/menuStructure';
 import {
   documentsConfig as defaultDocumentsConfig,
@@ -37,36 +39,63 @@ import {
 const DEFAULT_USER_PIN = '123456';
 const DEFAULT_ADMIN_PIN = '000000';
 
-// ============ Generic KV Read/Write ============
+// ============ Generic Read/Write ============
 
 async function kvGet(key, fallback) {
   try {
-    const kv = getKv();
-    if (!kv) return fallback;
-    const val = await kv.get(key);
+    const redis = getRedis();
+    if (!redis) return fallback;
+    const val = await redis.get(key);
     return val !== null && val !== undefined ? val : fallback;
   } catch (e) {
-    console.error(`KV GET error for ${key}:`, e.message);
+    console.error(`Redis GET error for ${key}:`, e.message);
     return fallback;
   }
 }
 
 async function kvSet(key, value) {
   try {
-    const kv = getKv();
-    if (!kv) throw new Error('KV not configured');
-    await kv.set(key, value);
+    const redis = getRedis();
+    if (!redis) throw new Error('Redis not configured');
+    await redis.set(key, JSON.stringify(value));
     return true;
   } catch (e) {
-    console.error(`KV SET error for ${key}:`, e.message);
+    console.error(`Redis SET error for ${key}:`, e.message);
     return false;
   }
+}
+
+async function kvDel(key) {
+  try {
+    const redis = getRedis();
+    if (!redis) return false;
+    await redis.del(key);
+    return true;
+  } catch (e) {
+    console.error(`Redis DEL error for ${key}:`, e.message);
+    return false;
+  }
+}
+
+// Upstash auto-deserializes JSON, but we double-stringify to be safe
+// so we need to handle both cases
+function parseValue(val, fallback) {
+  if (val === null || val === undefined) return fallback;
+  // If it's already an object (auto-deserialized), return as-is
+  if (typeof val === 'object') return val;
+  // If it's a string, try to parse
+  if (typeof val === 'string') {
+    try { return JSON.parse(val); } catch { return val; }
+  }
+  return val;
 }
 
 // ============ Public API ============
 
 export async function getUserPin() {
-  return kvGet(KV_KEYS.USER_PIN, DEFAULT_USER_PIN);
+  const val = await kvGet(KV_KEYS.USER_PIN, null);
+  const parsed = parseValue(val, DEFAULT_USER_PIN);
+  return typeof parsed === 'string' ? parsed : DEFAULT_USER_PIN;
 }
 
 export async function setUserPin(pin) {
@@ -74,7 +103,9 @@ export async function setUserPin(pin) {
 }
 
 export async function getAdminPin() {
-  return kvGet(KV_KEYS.ADMIN_PIN, DEFAULT_ADMIN_PIN);
+  const val = await kvGet(KV_KEYS.ADMIN_PIN, null);
+  const parsed = parseValue(val, DEFAULT_ADMIN_PIN);
+  return typeof parsed === 'string' ? parsed : DEFAULT_ADMIN_PIN;
 }
 
 export async function setAdminPin(pin) {
@@ -82,7 +113,8 @@ export async function setAdminPin(pin) {
 }
 
 export async function getMenuStructure() {
-  return kvGet(KV_KEYS.MENU_STRUCTURE, defaultMenuStructure);
+  const val = await kvGet(KV_KEYS.MENU_STRUCTURE, null);
+  return parseValue(val, defaultMenuStructure);
 }
 
 export async function saveMenuStructure(structure) {
@@ -90,7 +122,8 @@ export async function saveMenuStructure(structure) {
 }
 
 export async function getDocumentsConfig() {
-  return kvGet(KV_KEYS.DOCS_CONFIG, defaultDocumentsConfig);
+  const val = await kvGet(KV_KEYS.DOCS_CONFIG, null);
+  return parseValue(val, defaultDocumentsConfig);
 }
 
 export async function saveDocumentsConfig(config) {
@@ -98,7 +131,8 @@ export async function saveDocumentsConfig(config) {
 }
 
 export async function getCategoryPaths() {
-  return kvGet(KV_KEYS.CATEGORY_PATHS, defaultCategoryPaths);
+  const val = await kvGet(KV_KEYS.CATEGORY_PATHS, null);
+  return parseValue(val, defaultCategoryPaths);
 }
 
 export async function saveCategoryPaths(paths) {
@@ -106,7 +140,8 @@ export async function saveCategoryPaths(paths) {
 }
 
 export async function getNotifications() {
-  return kvGet(KV_KEYS.NOTIFICATIONS, []);
+  const val = await kvGet(KV_KEYS.NOTIFICATIONS, null);
+  return parseValue(val, []);
 }
 
 export async function saveNotifications(notifications) {
@@ -165,14 +200,13 @@ export function getBreadcrumbPath(id, structure, path = []) {
   return null;
 }
 
-// ============ Init / Seed ============
+// ============ Init / Reset ============
 
 export async function initializeDefaults() {
-  const kv = getKv();
-  if (!kv) return { ok: false, reason: 'KV not configured' };
+  const redis = getRedis();
+  if (!redis) return { ok: false, reason: 'Redis not configured' };
 
-  // Only seed if user_pin doesn't exist yet (first run)
-  const existing = await kv.get(KV_KEYS.USER_PIN);
+  const existing = await redis.get(KV_KEYS.USER_PIN);
   if (existing !== null && existing !== undefined) {
     return { ok: true, reason: 'Already initialized' };
   }
@@ -190,15 +224,13 @@ export async function initializeDefaults() {
 }
 
 export async function resetAllData() {
-  const kv = getKv();
-  if (!kv) return false;
+  const redis = getRedis();
+  if (!redis) return false;
 
-  // Delete all keys
   await Promise.all(
-    Object.values(KV_KEYS).map((key) => kv.del(key))
+    Object.values(KV_KEYS).map((key) => kvDel(key))
   );
 
-  // Re-seed with defaults
   await Promise.all([
     kvSet(KV_KEYS.USER_PIN, DEFAULT_USER_PIN),
     kvSet(KV_KEYS.ADMIN_PIN, DEFAULT_ADMIN_PIN),
@@ -212,5 +244,8 @@ export async function resetAllData() {
 }
 
 export function isKvConfigured() {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  return !!(
+    (process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL) &&
+    (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN)
+  );
 }

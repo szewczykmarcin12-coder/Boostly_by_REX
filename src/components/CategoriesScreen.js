@@ -1,19 +1,10 @@
 'use client';
 
-import { menuStructure } from '@/data/menuStructure';
-import { 
-  Monitor, 
-  Book, 
-  UserPlus, 
-  Info, 
-  Smile, 
-  AlertTriangle, 
-  CheckCircle, 
-  ShoppingBag, 
-  Clock, 
-  Truck,
-  ChevronRight,
-  FolderOpen
+import { useState, useEffect } from 'react';
+import { getMenuStructure } from '@/data/store';
+import {
+  Monitor, Book, UserPlus, Info, Smile, AlertTriangle,
+  CheckCircle, ShoppingBag, Clock, Truck, ChevronRight, FolderOpen
 } from 'lucide-react';
 
 const iconMap = {
@@ -30,13 +21,17 @@ const iconMap = {
 };
 
 export default function CategoriesScreen({ onNavigateToCategory }) {
-  const categories = menuStructure.children;
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const menu = getMenuStructure();
+    setCategories(menu.children || []);
+  }, []);
 
   return (
     <div className="space-y-3 animate-fadeIn">
       {categories.map((category, index) => {
         const Icon = iconMap[category.icon] || FolderOpen;
-        
         return (
           <button
             key={category.id}

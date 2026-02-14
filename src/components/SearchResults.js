@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { menuStructure, findCategoryById } from '@/data/menuStructure';
+import { getMenuStructure, getDocumentsConfig, getDocumentsForCategory } from '@/data/store';
 import { Search, FolderOpen, FileText } from 'lucide-react';
 
 export default function SearchResults({ query, onSelectCategory, onSelectDocument }) {
@@ -13,7 +13,9 @@ export default function SearchResults({ query, onSelectCategory, onSelectDocumen
       return;
     }
 
-    const searchResults = searchInStructure(menuStructure, query.toLowerCase());
+    const menuStructure = getMenuStructure();
+    const docsConfig = getDocumentsConfig();
+    const searchResults = searchInStructure(menuStructure, docsConfig, query.toLowerCase());
     setResults(searchResults);
   }, [query]);
 
@@ -32,7 +34,7 @@ export default function SearchResults({ query, onSelectCategory, onSelectDocumen
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <Search className="w-16 h-16 text-gray-300 mb-4" />
-        <p className="text-gray-700 font-medium mb-2">Brak wyników dla "{query}"</p>
+        <p className="text-gray-700 font-medium mb-2">Brak wyników dla &quot;{query}&quot;</p>
         <p className="text-gray-500">Spróbuj innych słów kluczowych</p>
       </div>
     );
@@ -41,10 +43,9 @@ export default function SearchResults({ query, onSelectCategory, onSelectDocumen
   return (
     <div className="space-y-4 animate-fadeIn">
       <p className="text-gray-500 text-sm">
-        Znaleziono {totalResults} wyników dla "{query}"
+        Znaleziono {totalResults} wyników dla &quot;{query}&quot;
       </p>
 
-      {/* Categories */}
       {results.categories.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-gray-600 uppercase mb-2">Kategorie</h3>
@@ -63,7 +64,6 @@ export default function SearchResults({ query, onSelectCategory, onSelectDocumen
         </div>
       )}
 
-      {/* Documents */}
       {results.documents.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-gray-600 uppercase mb-2">Dokumenty</h3>
@@ -88,40 +88,37 @@ export default function SearchResults({ query, onSelectCategory, onSelectDocumen
   );
 }
 
-// Funkcja wyszukiwania w strukturze menu
-function searchInStructure(structure, query, parentName = '') {
+function searchInStructure(structure, docsConfig, query) {
   const results = { categories: [], documents: [] };
 
   function traverse(node, path = '') {
-    const currentPath = path ? `${path} > ${node.name}` : node.name;
-    
-    // Sprawdź czy nazwa kategorii pasuje
     if (node.name && node.name.toLowerCase().includes(query)) {
       if (node.id !== 'main') {
-        results.categories.push({
-          id: node.id,
-          name: node.name,
-          path: path
-        });
+        results.categories.push({ id: node.id, name: node.name, path });
       }
     }
 
-    // Przeszukaj dokumenty
-    if (node.documents) {
-      node.documents.forEach(doc => {
+    // Search documents from docsConfig
+    const docs = docsConfig[node.id];
+    if (docs) {
+      docs.forEach(doc => {
         if (doc.name.toLowerCase().includes(query)) {
-          results.documents.push({
-            ...doc,
-            categoryName: node.name,
-            categoryId: node.id
-          });
+          // Get full document info via store
+          const fullDocs = getDocumentsForCategory(node.id);
+          const fullDoc = fullDocs.find(d => d.id === doc.id);
+          if (fullDoc) {
+            results.documents.push({
+              ...fullDoc,
+              categoryName: node.name,
+              categoryId: node.id,
+            });
+          }
         }
       });
     }
 
-    // Rekurencyjnie przeszukaj dzieci
     if (node.children) {
-      node.children.forEach(child => traverse(child, currentPath));
+      node.children.forEach(child => traverse(child, node.id === 'main' ? '' : `${path} > ${node.name}`));
     }
   }
 

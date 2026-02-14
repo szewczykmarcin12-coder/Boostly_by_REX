@@ -12,44 +12,17 @@ import NotificationsModal from '@/components/NotificationsModal';
 import CategoryView from '@/components/CategoryView';
 import DocumentView from '@/components/DocumentView';
 import SearchResults from '@/components/SearchResults';
-
-// Initial notifications about new documents
-const initialNotifications = [
-  {
-    id: 'notif-1',
-    type: 'new_document',
-    title: 'Nowy dokument dodany',
-    message: 'Dodano nowy dokument "Procedury otwarcia restauracji" w kategorii Zarządzanie restauracją',
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 min ago
-    read: false,
-  },
-  {
-    id: 'notif-2',
-    type: 'new_document',
-    title: 'Aktualizacja dokumentu',
-    message: 'Zaktualizowano dokument "HACCP" w kategorii Bezpieczeństwo żywności',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
-    read: false,
-  },
-  {
-    id: 'notif-3',
-    type: 'new_category',
-    title: 'Nowa kategoria',
-    message: 'Dodano nową kategorię "LTO" z aktualnymi promocjami',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-    read: true,
-  },
-  {
-    id: 'notif-4',
-    type: 'new_document',
-    title: 'Nowe standardy',
-    message: 'Dodano dokumenty dotyczące produktów smażonych w kategorii Standardy',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-    read: true,
-  },
-];
+import PinScreen from '@/components/PinScreen';
+import AdminPanel from '@/components/AdminPanel';
+import {
+  verifyUserPin, verifyAdminPin,
+  isAuthenticated, setAuthenticated,
+  isAdminAuthenticated, setAdminAuthenticated,
+  getNotifications, saveNotifications,
+} from '@/data/store';
 
 export default function Home() {
+  const [authState, setAuthState] = useState('loading'); // loading, pin, authenticated, admin
   const [activeTab, setActiveTab] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -62,58 +35,95 @@ export default function Home() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [navigationStack, setNavigationStack] = useState([]);
 
-  // Load data from localStorage
+  // Check auth state on mount
   useEffect(() => {
+    if (isAuthenticated()) {
+      setAuthState('authenticated');
+    } else {
+      setAuthState('pin');
+    }
+    // Load data
+    loadLocalData();
+  }, []);
+
+  const loadLocalData = () => {
+    if (typeof window === 'undefined') return;
     const savedFavorites = localStorage.getItem('boostly_favorites');
     const savedRecent = localStorage.getItem('boostly_recent');
-    const savedNotifications = localStorage.getItem('boostly_notifications');
-    
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
-    }
-    if (savedRecent) {
-      setRecentDocuments(JSON.parse(savedRecent));
-    }
-    if (savedNotifications) {
-      setNotifications(JSON.parse(savedNotifications));
-    } else {
-      // Set initial notifications if none saved
-      setNotifications(initialNotifications);
-    }
-  }, []);
+    if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
+    if (savedRecent) setRecentDocuments(JSON.parse(savedRecent));
+    setNotifications(getNotifications());
+  };
 
   // Save favorites to localStorage
   useEffect(() => {
-    localStorage.setItem('boostly_favorites', JSON.stringify(favorites));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('boostly_favorites', JSON.stringify(favorites));
+    }
   }, [favorites]);
 
   // Save recent to localStorage
   useEffect(() => {
-    localStorage.setItem('boostly_recent', JSON.stringify(recentDocuments));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('boostly_recent', JSON.stringify(recentDocuments));
+    }
   }, [recentDocuments]);
 
-  // Save notifications to localStorage
-  useEffect(() => {
-    if (notifications.length > 0) {
-      localStorage.setItem('boostly_notifications', JSON.stringify(notifications));
+  // ========== PIN Handlers ==========
+  const handlePinSuccess = (pin) => {
+    if (verifyUserPin(pin)) {
+      setAuthenticated(true);
+      setAuthState('authenticated');
+    } else {
+      // Trigger error in PinScreen
+      if (window.__pinScreenTriggerError) {
+        window.__pinScreenTriggerError('Nieprawidłowy PIN');
+      }
     }
-  }, [notifications]);
+  };
 
-  // Count unread notifications
+  const handleAdminAccess = (pin) => {
+    if (verifyAdminPin(pin)) {
+      setAdminAuthenticated(true);
+      setAuthState('admin');
+    } else {
+      if (window.__pinScreenTriggerError) {
+        window.__pinScreenTriggerError('Nieprawidłowy PIN administratora');
+      }
+    }
+  };
+
+  const handleAdminClose = () => {
+    setAdminAuthenticated(false);
+    setAuthState('authenticated');
+    // Refresh notifications after admin changes
+    setNotifications(getNotifications());
+  };
+
+  const handleLogout = () => {
+    setAuthenticated(false);
+    setAdminAuthenticated(false);
+    setAuthState('pin');
+  };
+
+  // ========== Notification Handlers ==========
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  // Mark notification as read
   const handleMarkNotificationAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    const updated = notifications.map(n =>
+      n.id === notificationId ? { ...n, read: true } : n
     );
+    setNotifications(updated);
+    saveNotifications(updated);
   };
 
-  // Mark all notifications as read
   const handleClearAllNotifications = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    const updated = notifications.map(n => ({ ...n, read: true }));
+    setNotifications(updated);
+    saveNotifications(updated);
   };
 
+  // ========== Navigation ==========
   const handleNavigateToCategory = (categoryId) => {
     setNavigationStack(prev => [...prev, { type: 'category', id: currentCategory }]);
     setCurrentCategory(categoryId);
@@ -123,8 +133,6 @@ export default function Home() {
   const handleNavigateToDocument = (document) => {
     setNavigationStack(prev => [...prev, { type: 'category', id: currentCategory }]);
     setCurrentDocument(document);
-    
-    // Add to recent
     const newRecent = [
       { ...document, viewedAt: new Date().toISOString() },
       ...recentDocuments.filter(d => d.id !== document.id)
@@ -137,7 +145,6 @@ export default function Home() {
       setCurrentDocument(null);
       return;
     }
-    
     if (navigationStack.length > 0) {
       const lastNav = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
@@ -170,30 +177,55 @@ export default function Home() {
     }
   };
 
+  // ========== Render ==========
+
+  // Loading state
+  if (authState === 'loading') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // PIN screen
+  if (authState === 'pin') {
+    return (
+      <PinScreen
+        onSuccess={handlePinSuccess}
+        onAdminAccess={handleAdminAccess}
+      />
+    );
+  }
+
+  // Admin panel
+  if (authState === 'admin') {
+    return <AdminPanel onClose={handleAdminClose} />;
+  }
+
+  // Main app (authenticated)
   const renderContent = () => {
     if (isSearching) {
       return (
-        <SearchResults 
+        <SearchResults
           query={searchQuery}
           onSelectCategory={handleNavigateToCategory}
           onSelectDocument={handleNavigateToDocument}
         />
       );
     }
-
     if (currentDocument) {
       return (
-        <DocumentView 
+        <DocumentView
           document={currentDocument}
           isFavorite={favorites.some(f => f.id === currentDocument.id)}
           onToggleFavorite={() => toggleFavorite(currentDocument)}
         />
       );
     }
-
     if (currentCategory) {
       return (
-        <CategoryView 
+        <CategoryView
           categoryId={currentCategory}
           onNavigateToCategory={handleNavigateToCategory}
           onNavigateToDocument={handleNavigateToDocument}
@@ -203,11 +235,10 @@ export default function Home() {
         />
       );
     }
-
     switch (activeTab) {
       case 'home':
         return (
-          <HomeScreen 
+          <HomeScreen
             recentDocuments={recentDocuments}
             favorites={favorites}
             onNavigateToDocument={handleNavigateToDocument}
@@ -216,13 +247,13 @@ export default function Home() {
         );
       case 'categories':
         return (
-          <CategoriesScreen 
+          <CategoriesScreen
             onNavigateToCategory={handleNavigateToCategory}
           />
         );
       case 'recent':
         return (
-          <RecentScreen 
+          <RecentScreen
             recentDocuments={recentDocuments}
             onNavigateToDocument={handleNavigateToDocument}
             favorites={favorites}
@@ -231,7 +262,7 @@ export default function Home() {
         );
       case 'favorites':
         return (
-          <FavoritesScreen 
+          <FavoritesScreen
             favorites={favorites}
             onNavigateToDocument={handleNavigateToDocument}
             onToggleFavorite={toggleFavorite}
@@ -239,7 +270,7 @@ export default function Home() {
         );
       default:
         return (
-          <HomeScreen 
+          <HomeScreen
             recentDocuments={recentDocuments}
             favorites={favorites}
             onNavigateToDocument={handleNavigateToDocument}
@@ -251,7 +282,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background pb-24">
-      <Header 
+      <Header
         searchQuery={searchQuery}
         onSearch={handleSearch}
         onOpenSettings={() => setShowSettings(true)}
@@ -260,22 +291,25 @@ export default function Home() {
         showBack={currentCategory !== null || currentDocument !== null}
         onBack={handleBack}
       />
-      
+
       <div className="pt-4 px-4">
         {renderContent()}
       </div>
 
-      <BottomNav 
-        activeTab={activeTab} 
+      <BottomNav
+        activeTab={activeTab}
         onTabChange={handleTabChange}
       />
 
       {showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} />
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onLogout={handleLogout}
+        />
       )}
 
       {showNotifications && (
-        <NotificationsModal 
+        <NotificationsModal
           onClose={() => setShowNotifications(false)}
           notifications={notifications}
           onMarkAsRead={handleMarkNotificationAsRead}

@@ -1,12 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { X, User, Languages } from 'lucide-react';
+import { X, User, Languages, LogOut } from 'lucide-react';
 
-export default function SettingsModal({ onClose }) {
+export default function SettingsModal({ onClose, onLogout }) {
   const [selectedLanguage, setSelectedLanguage] = useState('Polish');
-
   const languages = ['Polish'];
+
+  const handleLogout = () => {
+    if (window.confirm('Czy na pewno chcesz się wylogować?')) {
+      onLogout();
+      onClose();
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-10 animate-fadeIn">
@@ -14,7 +20,7 @@ export default function SettingsModal({ onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-xl font-semibold text-gray-800">Ustawienia</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
@@ -30,12 +36,10 @@ export default function SettingsModal({ onClose }) {
               <User className="w-14 h-14 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-800">Użytkownik Popeyes</h3>
-            
-            {/* Popeyes Logo */}
             <div className="mt-4">
-              <img 
-                src="/popeyes-logo.png" 
-                alt="Popeyes" 
+              <img
+                src="/popeyes-logo.png"
+                alt="Popeyes"
                 className="h-12 w-auto"
                 style={{ filter: 'brightness(0) saturate(100%) invert(55%) sepia(98%) saturate(1000%) hue-rotate(360deg) brightness(103%) contrast(106%)' }}
               />
@@ -82,9 +86,20 @@ export default function SettingsModal({ onClose }) {
             </div>
           </div>
 
+          {/* Logout button */}
+          <div className="mb-6">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              Wyloguj się
+            </button>
+          </div>
+
           {/* Version info */}
           <div className="text-center pt-4 border-t border-gray-100">
-            <span className="text-gray-400 text-sm">Ver. 1.0.0</span>
+            <span className="text-gray-400 text-sm">Ver. 2.0.0</span>
           </div>
         </div>
       </div>

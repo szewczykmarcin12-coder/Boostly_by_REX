@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { findCategoryById, getBreadcrumbPath } from '@/data/menuStructure';
-import { getDocumentsForCategory } from '@/data/documentsConfig';
+import { findCategoryById, getBreadcrumbPath, getDocumentsForCategory } from '@/data/store';
 import { ArrowLeft, FolderOpen, LayoutGrid, Heart } from 'lucide-react';
 import DocumentCard from './DocumentCard';
 
-export default function CategoryView({ 
-  categoryId, 
-  onNavigateToCategory, 
+export default function CategoryView({
+  categoryId,
+  onNavigateToCategory,
   onNavigateToDocument,
   onBack,
   favorites,
@@ -22,11 +21,10 @@ export default function CategoryView({
   useEffect(() => {
     const cat = findCategoryById(categoryId);
     const path = getBreadcrumbPath(categoryId);
-    
+
     setCategory(cat);
     setBreadcrumb(path ? path.filter(p => p.id !== 'main') : []);
-    
-    // Pobierz dokumenty z konfiguracji
+
     const categoryDocuments = getDocumentsForCategory(categoryId);
     setDocuments(categoryDocuments);
     setLoading(false);

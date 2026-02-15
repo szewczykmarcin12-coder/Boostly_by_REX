@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getFullConfig, isKvConfigured } from '@/lib/kv';
+import { getFullConfig, isKvConfigured, isBlobConfigured } from '@/lib/kv';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({
       ...config,
       kvConfigured: isKvConfigured(),
+      blobConfigured: isBlobConfigured(),
     });
   } catch (error) {
     console.error('Config fetch error:', error);

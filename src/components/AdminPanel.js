@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, Shield, Key, FolderPlus, FilePlus, Trash2, Edit3,
-  Save, X, ChevronRight, ChevronDown, FileText, Folder, Plus,
-  AlertCircle, Check, LogOut, RefreshCw, Eye, EyeOff, Link, Loader2
+  Save, X, ChevronRight, ChevronDown, FileText, Folder,
+  AlertCircle, Check, LogOut, RefreshCw, Eye, EyeOff, Link, Loader2,
+  Upload, File
 } from 'lucide-react';
-import { fetchConfig, adminAction, adminChangePin, adminGetUserPin } from '@/lib/api';
+import { fetchConfig, adminAction, adminChangePin, adminGetUserPin, uploadPdf } from '@/lib/api';
 
-export default function AdminPanel({ adminPin, onClose }) {
+export default function AdminPanel({ adminPin: initialAdminPin, onClose }) {
+  const [adminPin, setAdminPinState] = useState(initialAdminPin);
   const [activeSection, setActiveSection] = useState('categories');
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,28 +39,23 @@ export default function AdminPanel({ adminPin, onClose }) {
 
   // Add document form
   const [newDocName, setNewDocName] = useState('');
-  const [newDocFilename, setNewDocFilename] = useState('');
-  const [newDocUrl, setNewDocUrl] = useState('');
+  const [newDocFile, setNewDocFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(null); // null | 'uploading' | 'done'
+  const [uploadedUrl, setUploadedUrl] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const data = await fetchConfig();
-      setConfig(data);
-    } catch (e) {
-      showToast('Błąd ładowania konfiguracji', 'error');
-    } finally {
-      setLoading(false);
-    }
+    try { setConfig(await fetchConfig()); }
+    catch (e) { showToast('Błąd ładowania konfiguracji', 'error'); }
+    finally { setLoading(false); }
   };
 
   const loadUserPin = async () => {
-    try {
-      const data = await adminGetUserPin(adminPin);
-      setCurrentUserPinDisplay(data.userPin);
-    } catch { /* ignore */ }
+    try { const data = await adminGetUserPin(adminPin); setCurrentUserPinDisplay(data.userPin); }
+    catch { /* ignore */ }
   };
 
   useEffect(() => {
@@ -67,7 +64,7 @@ export default function AdminPanel({ adminPin, onClose }) {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
   const doAction = async (action, payload = {}) => {
@@ -79,12 +76,10 @@ export default function AdminPanel({ adminPin, onClose }) {
     } catch (e) {
       showToast(e.message || 'Błąd operacji', 'error');
       return false;
-    } finally {
-      setActionLoading(false);
-    }
+    } finally { setActionLoading(false); }
   };
 
-  // ========== PIN Section ==========
+  // ========== PIN ==========
   const handleChangeUserPin = async () => {
     if (newUserPin.length !== 6 || !/^\d{6}$/.test(newUserPin)) { showToast('PIN musi składać się z 6 cyfr', 'error'); return; }
     if (newUserPin !== confirmUserPin) { showToast('PIN-y nie są identyczne', 'error'); return; }
@@ -101,8 +96,10 @@ export default function AdminPanel({ adminPin, onClose }) {
     if (newAdminPin !== confirmAdminPin) { showToast('PIN-y nie są identyczne', 'error'); return; }
     try {
       await adminChangePin(adminPin, 'changeAdminPin', newAdminPin);
+      // Update local admin PIN so subsequent API calls use the new one
+      setAdminPinState(newAdminPin);
       setNewAdminPin(''); setConfirmAdminPin('');
-      showToast('PIN administratora został zmieniony. Zaloguj się ponownie.');
+      showToast('PIN administratora został zmieniony');
     } catch (e) { showToast(e.message, 'error'); }
   };
 
@@ -130,19 +127,62 @@ export default function AdminPanel({ adminPin, onClose }) {
   };
 
   // ========== Document ops ==========
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      showToast('Dozwolone są tylko pliki PDF', 'error');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      showToast('Plik jest za duży (max 50MB)', 'error');
+      return;
+    }
+    setNewDocFile(file);
+    if (!newDocName) {
+      // Auto-fill name from filename
+      setNewDocName(file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' '));
+    }
+  };
+
   const handleAddDocument = async () => {
     if (!newDocName.trim()) { showToast('Podaj nazwę dokumentu', 'error'); return; }
-    if (!newDocFilename.trim() && !newDocUrl.trim()) { showToast('Podaj nazwę pliku lub URL', 'error'); return; }
+    if (!newDocFile) { showToast('Wybierz plik PDF', 'error'); return; }
+
+    // Step 1: Upload PDF
+    setUploadProgress('uploading');
+    let fileUrl;
+    try {
+      const result = await uploadPdf(adminPin, newDocFile);
+      fileUrl = result.url;
+      setUploadedUrl(fileUrl);
+    } catch (e) {
+      setUploadProgress(null);
+      showToast('Błąd przesyłania: ' + e.message, 'error');
+      return;
+    }
+
+    // Step 2: Add document to config with uploaded URL
+    setUploadProgress('done');
     const ok = await doAction('addDocument', {
       categoryId: addDocumentCategory,
       document: {
         id: `doc-${Date.now()}`,
         name: newDocName.trim(),
-        filename: newDocFilename.trim() || `${newDocName.trim().toLowerCase().replace(/\s+/g, '-')}.pdf`,
-        customUrl: newDocUrl.trim() || null,
+        filename: newDocFile.name,
+        customUrl: fileUrl,
       },
     });
-    if (ok) { setNewDocName(''); setNewDocFilename(''); setNewDocUrl(''); setShowAddDocument(false); showToast(`Dokument "${newDocName.trim()}" został dodany`); }
+
+    if (ok) {
+      setNewDocName('');
+      setNewDocFile(null);
+      setUploadedUrl('');
+      setUploadProgress(null);
+      setShowAddDocument(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      showToast(`Dokument "${newDocName.trim()}" został dodany`);
+    }
   };
 
   const handleUpdateDocument = async (categoryId, docId, updates) => {
@@ -190,7 +230,7 @@ export default function AdminPanel({ adminPin, onClose }) {
               <span className="flex-1 text-sm font-medium text-gray-800 truncate">{node.name}</span>
               <span className="text-xs text-gray-400 mr-1">{docs.length} dok.</span>
               <button onClick={() => setEditingCategory(node.id)} className="p-1 text-gray-400 hover:text-blue-500" title="Edytuj"><Edit3 className="w-3.5 h-3.5" /></button>
-              <button onClick={() => { setAddDocumentCategory(node.id); setShowAddDocument(true); }} className="p-1 text-gray-400 hover:text-green-500" title="Dodaj dokument"><FilePlus className="w-3.5 h-3.5" /></button>
+              <button onClick={() => { setAddDocumentCategory(node.id); setShowAddDocument(true); setNewDocName(''); setNewDocFile(null); setUploadedUrl(''); setUploadProgress(null); }} className="p-1 text-gray-400 hover:text-green-500" title="Dodaj dokument"><FilePlus className="w-3.5 h-3.5" /></button>
               <button onClick={() => { setAddCategoryParent(node.id); setShowAddCategory(true); }} className="p-1 text-gray-400 hover:text-primary" title="Dodaj podkategorię"><FolderPlus className="w-3.5 h-3.5" /></button>
               <button onClick={() => handleDeleteCategory(node.id)} className="p-1 text-gray-400 hover:text-red-500" title="Usuń"><Trash2 className="w-3.5 h-3.5" /></button>
             </>
@@ -228,14 +268,12 @@ export default function AdminPanel({ adminPin, onClose }) {
             <button onClick={onClose} className="p-2 -ml-2 hover:bg-gray-100 rounded-full"><ArrowLeft className="w-6 h-6 text-gray-700" /></button>
             <div className="flex items-center gap-2"><Shield className="w-5 h-5 text-red-500" /><h1 className="text-lg font-bold text-gray-800">Panel administratora</h1></div>
           </div>
-          <button onClick={onClose} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg">
-            <LogOut className="w-4 h-4" /> Wyjdź
-          </button>
+          <button onClick={onClose} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg"><LogOut className="w-4 h-4" /> Wyjdź</button>
         </div>
         {!config.kvConfigured && (
           <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-yellow-800 text-xs">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>Upstash Redis nie jest skonfigurowany. Zmiany nie będą zapisywane. <a href="https://vercel.com/marketplace/upstash-redis" target="_blank" rel="noopener" className="underline font-semibold">Dodaj z Marketplace →</a></span>
+            <span>Upstash Redis nie jest skonfigurowany. Zmiany nie będą zapisywane.</span>
           </div>
         )}
       </div>
@@ -292,6 +330,14 @@ export default function AdminPanel({ adminPin, onClose }) {
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
+            {!config.blobConfigured && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2 text-blue-800 text-xs mb-3">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>
+                  <strong>Upload PDF wymaga Vercel Blob.</strong> Aby przesyłać pliki z urządzenia, dodaj Blob Store w Vercel → Storage → Create Database → Blob.
+                </div>
+              </div>
+            )}
             <div className="space-y-1">{renderCategoryTree(config.menuStructure)}</div>
           </div>
         )}
@@ -312,16 +358,80 @@ export default function AdminPanel({ adminPin, onClose }) {
         </Modal>
       )}
 
-      {/* Add Document Modal */}
+      {/* Add Document Modal - with file upload */}
       {showAddDocument && (
-        <Modal onClose={() => setShowAddDocument(false)} title="Dodaj dokument">
-          <div className="space-y-3">
-            <div><label className="block text-xs font-semibold text-gray-600 mb-1">Nazwa dokumentu *</label><input type="text" placeholder="np. Instrukcja obsługi" value={newDocName} onChange={(e) => setNewDocName(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" autoFocus /></div>
-            <div><label className="block text-xs font-semibold text-gray-600 mb-1">Nazwa pliku PDF</label><input type="text" placeholder="np. instrukcja-obslugi.pdf" value={newDocFilename} onChange={(e) => setNewDocFilename(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" /></div>
-            <div><label className="block text-xs font-semibold text-gray-600 mb-1"><Link className="w-3 h-3 inline mr-1" />Lub pełny URL do pliku PDF</label><input type="url" placeholder="https://..." value={newDocUrl} onChange={(e) => setNewDocUrl(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" /></div>
+        <Modal onClose={() => { setShowAddDocument(false); setUploadProgress(null); setNewDocFile(null); setUploadedUrl(''); }} title="Dodaj dokument PDF">
+          <div className="space-y-4">
+            {/* File picker */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Wybierz plik PDF *</label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                  newDocFile ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-primary hover:bg-orange-50'
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                {newDocFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <File className="w-10 h-10 text-green-500" />
+                    <p className="text-sm font-semibold text-green-700">{newDocFile.name}</p>
+                    <p className="text-xs text-green-600">{(newDocFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setNewDocFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="text-xs text-red-500 hover:text-red-700 underline"
+                    >
+                      Usuń plik
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="w-10 h-10 text-gray-400" />
+                    <p className="text-sm text-gray-600 font-medium">Kliknij aby wybrać plik PDF</p>
+                    <p className="text-xs text-gray-400">Maksymalny rozmiar: 50 MB</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Document name */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Nazwa dokumentu *</label>
+              <input
+                type="text"
+                placeholder="np. Instrukcja obsługi"
+                value={newDocName}
+                onChange={(e) => setNewDocName(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
+            </div>
+
             <p className="text-xs text-gray-400">Dokument dodany do: <strong>{addDocumentCategory}</strong></p>
-            <button onClick={handleAddDocument} disabled={actionLoading} className="w-full bg-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors">
-              {actionLoading ? 'Dodawanie...' : 'Dodaj dokument'}
+
+            {/* Upload progress */}
+            {uploadProgress === 'uploading' && (
+              <div className="flex items-center gap-2 text-primary text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Przesyłanie pliku...</span>
+              </div>
+            )}
+
+            <button
+              onClick={handleAddDocument}
+              disabled={actionLoading || uploadProgress === 'uploading' || !newDocFile}
+              className="w-full bg-primary text-white py-3 rounded-xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {uploadProgress === 'uploading' ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Przesyłanie...</>
+              ) : (
+                <><Upload className="w-4 h-4" /> Prześlij i dodaj dokument</>
+              )}
             </button>
           </div>
         </Modal>
@@ -342,9 +452,9 @@ export default function AdminPanel({ adminPin, onClose }) {
 
 function Modal({ onClose, title, children }) {
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden animate-scaleIn">
-        <div className="flex items-center justify-between p-4 border-b"><h3 className="text-lg font-bold text-gray-800">{title}</h3><button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-600" /></button></div>
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-fadeIn" onClick={onClose}>
+      <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden animate-scaleIn max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white"><h3 className="text-lg font-bold text-gray-800">{title}</h3><button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5 text-gray-600" /></button></div>
         <div className="p-4">{children}</div>
       </div>
     </div>
@@ -386,7 +496,7 @@ function DocumentItem({ doc, categoryId, isEditing, onEdit, onCancelEdit, onSave
       <FileText className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <span className="text-sm text-gray-700 truncate block">{doc.name}</span>
-        <span className="text-[10px] text-gray-400 truncate block">{doc.customUrl || doc.filename}</span>
+        <span className="text-[10px] text-gray-400 truncate block">{doc.customUrl ? '☁️ Przesłany' : doc.filename}</span>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button onClick={onEdit} className="p-1 text-gray-400 hover:text-blue-500"><Edit3 className="w-3.5 h-3.5" /></button>

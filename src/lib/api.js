@@ -60,6 +60,23 @@ export async function adminInit() {
   return apiFetch('/admin/init', { method: 'POST' });
 }
 
+// Upload PDF file
+export async function uploadPdf(adminPin, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('adminPin', adminPin);
+
+  const res = await fetch(`${API_BASE}/upload`, {
+    method: 'POST',
+    body: formData, // no Content-Type header - browser sets multipart boundary
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return data;
+}
+
 // ========== Notification read state (local per user) ==========
 
 export function getReadNotificationIds() {

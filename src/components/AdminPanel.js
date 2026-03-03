@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, Shield, Key, FolderPlus, FilePlus, Trash2, Edit3,
   Save, X, ChevronRight, ChevronDown, FileText, Folder,
-  AlertCircle, Check, LogOut, RefreshCw, Eye, EyeOff, Link, Loader2,
+  AlertCircle, Check, LogOut, Eye, EyeOff, Link, Loader2,
   Upload, File
 } from 'lucide-react';
 import { fetchConfig, adminAction, adminChangePin, adminGetUserPin, uploadPdf } from '@/lib/api';
@@ -197,12 +197,6 @@ export default function AdminPanel({ adminPin: initialAdminPin, onClose }) {
     showToast('Dokument usunięty');
   };
 
-  const handleReset = async () => {
-    if (!window.confirm('Przywrócić domyślną konfigurację? Wszystkie zmiany zostaną utracone.')) return;
-    await doAction('resetToDefaults');
-    showToast('Przywrócono domyślne');
-  };
-
   const toggleExpand = (id) => setExpandedCategories(prev => ({ ...prev, [id]: !prev[id] }));
 
   // ========== Render category tree ==========
@@ -325,9 +319,6 @@ export default function AdminPanel({ adminPin: initialAdminPin, onClose }) {
             <div className="flex gap-2 mb-4">
               <button onClick={() => { setAddCategoryParent('main'); setShowAddCategory(true); }} className="flex-1 flex items-center justify-center gap-2 bg-primary text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-orange-600 transition-colors">
                 <FolderPlus className="w-4 h-4" /> Nowa kategoria
-              </button>
-              <button onClick={handleReset} className="flex items-center gap-2 bg-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-300 transition-colors" title="Przywróć domyślne">
-                <RefreshCw className="w-4 h-4" />
               </button>
             </div>
             {!config.blobConfigured && (

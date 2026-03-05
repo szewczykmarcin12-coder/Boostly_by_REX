@@ -108,7 +108,7 @@ export default function SettingsModal({ onClose, onLogout }) {
           {/* Paszport Popeyes card */}
           <div className="relative bg-primary rounded-2xl p-5 mb-5 overflow-hidden" style={{ minHeight: '120px' }}>
             {/* White chicken logo - large, filling left corner, center of logo at edge */}
-            <div className="absolute left-[-38px] top-1/2 -translate-y-1/2 pointer-events-none">
+            <div className="absolute left-[-38px] top-1/2 -translate-y-[42%] pointer-events-none">
               <img
                 src="/popeyes-white-logo.png"
                 alt=""

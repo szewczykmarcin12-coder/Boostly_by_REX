@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { findCategoryById, getBreadcrumbPath, buildDocumentsForCategory } from '@/lib/api';
-import { ArrowLeft, FolderOpen, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, FolderOpen } from 'lucide-react';
 import DocumentCard from './DocumentCard';
 
 export default function CategoryView({
@@ -51,10 +51,13 @@ export default function CategoryView({
         <div className="grid grid-cols-2 gap-3 mb-6">
           {category.children.map((subcat, index) => (
             <button key={subcat.id} onClick={() => onNavigateToCategory(subcat.id)}
-              className="bg-gray-600 rounded-2xl p-4 h-32 flex flex-col justify-between text-left hover:bg-gray-700 transition-colors animate-scaleIn"
-              style={{ animationDelay: `${index * 50}ms` }}>
-              <span className="text-white font-semibold text-sm uppercase leading-tight">{subcat.name}</span>
-              <div className="flex justify-end"><LayoutGrid className="w-6 h-6 text-gray-400" /></div>
+              className="rounded-2xl p-4 h-36 flex flex-col justify-between text-left hover:opacity-90 transition-colors animate-scaleIn"
+              style={{ backgroundColor: '#25303d', animationDelay: `${index * 50}ms` }}>
+              <span className="text-white font-semibold text-sm uppercase leading-tight line-clamp-3">{subcat.name}</span>
+              <div className="flex items-end justify-between">
+                <img src="/catalog-tree-icon.png" alt="" className="w-8 h-8 object-contain opacity-90" style={{ filter: 'brightness(0) invert(1)' }} />
+                <span className="bg-white text-gray-700 text-xs font-medium px-3 py-1 rounded-full">CATALOG</span>
+              </div>
             </button>
           ))}
         </div>

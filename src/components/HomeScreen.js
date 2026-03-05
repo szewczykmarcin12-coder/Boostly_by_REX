@@ -27,7 +27,7 @@ export default function HomeScreen({
 
       {/* Standardy pracy text */}
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-gray-700">Standardy pracy</h2>
+        <h2 className="text-lg font-semibold text-gray-700">Boost Your Performance</h2>
       </div>
 
       {/* Recently added section */}

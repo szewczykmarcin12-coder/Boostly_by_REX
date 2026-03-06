@@ -55,7 +55,7 @@ export default function CategoryView({
               style={{ backgroundColor: '#25303d', animationDelay: `${index * 50}ms` }}>
               <span className="text-white font-semibold text-sm uppercase leading-tight line-clamp-3">{subcat.name}</span>
               <div className="flex items-end justify-between">
-                <img src="/catalog-tree-icon.png" alt="" className="w-12 h-12 object-contain opacity-90" style={{ filter: 'brightness(0) invert(1)' }} />
+                <img src="/catalog-tree-icon.png" alt="" className="w-12 h-12 object-contain opacity-90 -ml-2" style={{ filter: 'brightness(0) invert(1)' }} />
                 <span className="bg-white text-gray-700 text-xs font-medium px-3 py-1 rounded-full">CATALOG</span>
               </div>
             </button>

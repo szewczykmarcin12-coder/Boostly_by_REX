@@ -5,7 +5,6 @@ import { X, User, Globe, LogOut, ChevronLeft, Check } from 'lucide-react';
 
 export default function SettingsModal({ onClose, onLogout }) {
   const [view, setView] = useState('main'); // main, brand, language
-  const [selectedBrand, setSelectedBrand] = useState('Popeyes');
   const [selectedLanguage, setSelectedLanguage] = useState('Polski');
 
   // Prevent background scrolling when modal is open
@@ -21,30 +20,39 @@ export default function SettingsModal({ onClose, onLogout }) {
     }
   };
 
-  // Brand selection subview
+  // Brand info subview - Rex Concepts presentation
   if (view === 'brand') {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-10 animate-fadeIn" onClick={onClose}>
         <div className="bg-white w-full max-w-md mx-4 rounded-2xl overflow-hidden animate-scaleIn" onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-3 p-4 border-b border-gray-100">
             <button onClick={() => setView('main')} className="p-1.5 hover:bg-gray-100 rounded-full"><ChevronLeft className="w-5 h-5 text-gray-500" /></button>
-            <h2 className="text-lg font-medium text-gray-700">Wybierz brand</h2>
+            <h2 className="text-lg font-medium text-gray-700">Dowiedz się więcej</h2>
           </div>
-          <div className="p-4 space-y-2">
-            {['Popeyes', 'Burger King'].map(brand => (
-              <button
-                key={brand}
-                onClick={() => setSelectedBrand(brand)}
-                className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-medium transition-colors ${
-                  selectedBrand === brand
-                    ? 'bg-primary/10 text-primary border border-primary/30'
-                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-transparent'
-                }`}
-              >
-                <span>{brand}</span>
-                {selectedBrand === brand && <Check className="w-4.5 h-4.5 text-primary" />}
-              </button>
-            ))}
+          <div className="p-5 text-center">
+            {/* RC logo */}
+            <div className="flex justify-center mb-5">
+              <img src="/rc-full-logo.png" alt="Rex Concepts" className="h-20 w-auto object-contain" />
+            </div>
+
+            {/* Mission text */}
+            <p className="text-gray-700 text-sm leading-relaxed mb-3">
+              Nasza misja to serwowanie najlepszego jedzenia <span className="text-primary italic">każdemu i zawsze</span>.
+            </p>
+            <p className="text-gray-700 text-sm leading-relaxed mb-5">
+              W Rex Concepts po prostu kochamy świetne jedzenie. Wierzymy, że radość dzielenia się pysznym posiłkiem w najlepszych chwilach życia powinna być dostępna dla każdego i wszędzie.
+            </p>
+
+            {/* Franchisor label */}
+            <p className="text-gray-600 text-sm font-medium mb-4">
+              Jesteśmy głównym franczyzodawcą:
+            </p>
+
+            {/* Brand logos */}
+            <div className="flex items-center justify-center gap-6">
+              <img src="/popeyes-full-logo.png" alt="Popeyes" className="h-14 w-auto object-contain" />
+              <img src="/bk-logo.png" alt="Burger King" className="h-14 w-auto object-contain" />
+            </div>
           </div>
         </div>
       </div>

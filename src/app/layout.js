@@ -21,6 +21,16 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        {/* Preload images for instant display */}
+        <link rel="preload" as="image" href="/boostly-logo.png" />
+        <link rel="preload" as="image" href="/popeyes-logo.png" />
+        <link rel="preload" as="image" href="/popeyes-white-logo.png" />
+        <link rel="preload" as="image" href="/popeyes-full-logo.png" />
+        <link rel="preload" as="image" href="/bk-logo.png" />
+        <link rel="preload" as="image" href="/rc-logo.png" />
+        <link rel="preload" as="image" href="/rc-full-logo.png" />
+        <link rel="preload" as="image" href="/doc-lines-icon.png" />
+        <link rel="preload" as="image" href="/catalog-tree-icon.png" />
       </head>
       <body className="bg-background min-h-screen">
         {children}
